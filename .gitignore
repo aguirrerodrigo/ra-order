@@ -66,7 +66,7 @@ node_modules/
 
 # Configurations
 auth/firebase.json
-environments/environment.json
+environments/environment.ts
 
 # Output
 .out
