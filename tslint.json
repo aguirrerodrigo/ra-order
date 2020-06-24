@@ -1,6 +1,9 @@
 {
 	"extends": "tslint:recommended",
 	"rules": {
+		"await-promise": true,
+		"no-return-await": true,
+		"promise-function-async": true,
 		"indent": [true, "tabs", 4],
 		"curly": [true, "ignore-same-line"],
 		"variable-name": {
