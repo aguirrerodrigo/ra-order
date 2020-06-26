@@ -1,67 +1,81 @@
-import * as admin from 'firebase-admin';
 import { Order } from './models/order';
-import { parseValidationError } from './models/validation/validation-error';
+import { OrderRepository } from './repositories/order-repository';
+import * as moment from 'moment';
+import { isNotEmptyObject } from 'class-validator';
+import { ServiceError, serviceError } from '../errors/service-error';
 
 export class OrderService {
-	async checkout(order: Order): Promise<any> {
+	readonly repo = new OrderRepository();
+
+	async fetch(date: string): Promise<Order[]> {
 		try {
-			const model = new Order(order);
-			model.checkoutDate = new Date().toISOString();
-			model.assembleDate = null;
+			if (!moment(date, 'YYYY-MM-DD').isValid()) {
+				throw new ServiceError('Date must be in a "YYYY-MM-DD" format.', {
+					statusCode: 400
+				});
+			}
 
-			await model.validate();
-
-			const id = await this.saveOrder(model);
-			return Promise.resolve(id);
+			return await this.repo.fetch(date);
 		} catch (err) {
-			console.log(`OrderService.checkout error: ${err}`);
-			throw parseValidationError(err);
+			console.log(`OrderService.list error: ${err}`);
+			throw serviceError(err);
 		}
 	}
 
-	private async saveOrder(order: Order): Promise<any> {
-		const doc = admin.firestore().collection('order2').doc();
-		const data = {
-			cash: order.cash,
-			change: order.change,
-			checkoutDate: order.checkoutDate,
-			checkoutDuration: order.checkoutDuration,
-			itemCount: order.itemCount,
-			createDate: order.createDate,
-			date: order.date,
-			discount: order.discountAmount,
-			discountPercentage: order.discountPercentage,
-			discountedTotal: order.discountedTotal,
-			total: order.total
-		} as any;
-
-		if (order.assembleDate != null) {
-			data.assembleDate = order.assembleDate;
-		}
-
-		if (order.assembleDuration != null) {
-			data.assembleDuration = order.assembleDuration;
-		}
-
-		if (order.items != null) {
-			data.items = [];
-			for (const item of order.items) {
-				const dataItem = {
-					name: item.name,
-					quantity: item.quantity,
-					price: item.price,
-					total: item.total
-				} as any;
-
-				if (item.description != null) {
-					dataItem.description = item.description;
-				}
-
-				data.items.push(dataItem);
+	async get(date: string, orderNumber: any): Promise<Order> {
+		try {
+			if (!moment(date, 'YYYY-MM-DD').isValid()) {
+				throw new ServiceError('Date must be in a "YYYY-MM-DD" format.', {
+					statusCode: 400
+				});
 			}
-		}
 
-		const result = await doc.set(data);
-		return Promise.resolve(doc.id);
+			return await this.repo.get(date, orderNumber);
+		} catch (err) {
+			console.log(`OrderService.list error: ${err}`);
+			throw serviceError(err);
+		}
+	}
+
+	async post(data: any): Promise<Order> {
+		try {
+			// Insert anything except assembleDate
+			data.assembleDate = null;
+
+			const model = new Order(data);
+			await model.validate();
+
+			await this.repo.save(model);
+			return model;
+		} catch (err) {
+			console.log(`OrderService.post error: ${err}`);
+			throw serviceError(err);
+		}
+	}
+
+	async put(date: string, orderNumber: any, data: any): Promise<void> {
+		try {
+			if (!moment(date, 'YYYY-MM-DD').isValid()) {
+				throw new ServiceError('Date must be in a "YYYY-MM-DD" format.', {
+					statusCode: 400
+				});
+			}
+
+			if (!isNotEmptyObject(data)) {
+				throw new ServiceError('Nothing to update.', { statusCode: 400 });
+			}
+
+			const model = await this.repo.get(date, orderNumber);
+
+			// Update only assembleDate
+			model.json({ assembleDate: data.assembleDate });
+
+			await model.validate();
+
+			await this.repo.save(model);
+		} catch (err) {
+			console.log(`OrderService.put error: ${err}`);
+			throw serviceError(err);
+		}
 	}
 }

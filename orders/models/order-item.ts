@@ -1,6 +1,7 @@
-import { IsDefined, IsNumber, IsPositive } from 'class-validator';
+import { Model } from './model';
+import { IsDefined, IsNumber, IsPositive, validate } from 'class-validator';
 
-export class OrderItem {
+export class OrderItem extends Model {
 	description?: string;
 
 	@IsDefined({ message: 'Name is required.' })
@@ -32,9 +33,31 @@ export class OrderItem {
 		return this.quantity * this.price;
 	}
 
-	constructor(orderItem?: OrderItem) {
-		if (orderItem != null) {
-			Object.assign(this, orderItem);
+	constructor(data: any = null) {
+		super();
+
+		this.json(data);
+	}
+
+	json(data: any = null): any {
+		if (data != null) {
+			this.map(
+				{
+					description: null,
+					name: null,
+					price: null,
+					quantity: null
+				},
+				data
+			);
 		}
+
+		return this.map({
+			description: null,
+			name: null,
+			price: null,
+			quantity: null,
+			total: null
+		});
 	}
 }

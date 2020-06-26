@@ -1,16 +1,21 @@
+import { Model } from './model';
 import { OrderItem } from './order-item';
 import { Discount } from './discount';
 import {
-	IsDefined,
 	IsPositive,
 	IsNumber,
 	IsDateString,
-	validateOrReject,
-	ValidateNested
+	ValidateNested,
+	IsOptional,
+	IsDefined
 } from 'class-validator';
 import * as moment from 'moment';
+import { ValidationError } from '../../errors/validation-error';
 
-export class Order {
+export class Order extends Model {
+	@IsDefined({ message: 'OrderNumber is required.' })
+	orderNumber: any;
+
 	@ValidateNested()
 	items?: OrderItem[];
 
@@ -99,9 +104,10 @@ export class Order {
 	}
 
 	get date(): string {
-		return moment.utc(this.checkoutDate).format('YYYY-MM-DD');
+		return moment(this.checkoutDate).format('YYYY-MM-DD');
 	}
 
+	@IsOptional()
 	@IsDateString({ message: 'AssembledDate must be in a valid date format.' })
 	assembleDate?: string;
 
@@ -115,30 +121,82 @@ export class Order {
 		}
 	}
 
-	constructor(order?: Order) {
-		if (order != null) {
-			Object.assign(this, order);
-			if (order.items != null) {
+	constructor(data: any = null) {
+		super();
+
+		this.json(data);
+	}
+
+	json(data: any = null): any {
+		if (data != null) {
+			this.setJson(data);
+		}
+
+		return this.getJson();
+	}
+
+	private getJson(): any {
+		const data = this.map({
+			orderNumber: null,
+			itemCount: null,
+			total: null,
+			discountAmount: null,
+			discountPercentage: null,
+			discountedTotal: null,
+			change: null,
+			cash: null,
+			createDate: null,
+			checkoutDate: null,
+			checkoutDuration: null,
+			date: null,
+			assembleDuration: null
+		});
+
+		if (this.items != null) {
+			data.items = [];
+			for (const item of this.items) {
+				data.items.push(item.json());
+			}
+		}
+
+		if (this.discount != null) {
+			data.discount = this.discount.json();
+		}
+
+		return data;
+	}
+
+	private setJson(data: any): void {
+		if (data != null) {
+			this.map(
+				{
+					orderNumber: null,
+					cash: null,
+					createDate: null,
+					checkoutDate: null,
+					assembleDate: null
+				},
+				data
+			);
+
+			if (Array.isArray(data.items)) {
 				this.items = [];
-				for (const item of order.items) {
+				for (const item of data.items) {
 					this.items.push(new OrderItem(item));
 				}
 			}
 
-			if (order.discount != null) {
-				this.discount = new Discount(order.discount);
+			if (data.discount != null) {
+				this.discount = new Discount(data.discount);
 			}
 		}
 	}
 
 	async validate(): Promise<void> {
-		await validateOrReject(this, {
-			skipUndefinedProperties: true,
-			skipNullProperties: true
-		});
+		await super.validate();
 
 		if (this.change < 0) {
-			throw Error('Not enough cash.');
+			throw new ValidationError('Not enough cash.');
 		}
 	}
 }

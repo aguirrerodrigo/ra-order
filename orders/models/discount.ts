@@ -1,6 +1,7 @@
+import { Model } from './model';
 import { IsPositive, IsDefined, IsNumber, IsIn } from 'class-validator';
 
-export class Discount {
+export class Discount extends Model {
 	@IsDefined({ message: 'Value is required.' })
 	@IsPositive({ message: 'Value must be a positive number.' })
 	@IsNumber(
@@ -18,9 +19,26 @@ export class Discount {
 	})
 	type: 'amount' | 'percentage' = 'amount';
 
-	constructor(discount?: Discount) {
-		if (discount != null) {
-			Object.assign(this, discount);
+	constructor(data: any = null) {
+		super();
+
+		this.json(data);
+	}
+
+	json(data: any = null): any {
+		if (data != null) {
+			this.map(
+				{
+					value: null,
+					type: null
+				},
+				data
+			);
 		}
+
+		return this.map({
+			value: null,
+			type: null
+		});
 	}
 }
