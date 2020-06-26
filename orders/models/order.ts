@@ -16,6 +16,9 @@ export class Order extends Model {
 	@IsDefined({ message: 'OrderNumber is required.' })
 	orderNumber: any;
 
+	@IsDefined({ message: 'Pos is required.' })
+	pos: any;
+
 	@ValidateNested()
 	items?: OrderItem[];
 
@@ -103,6 +106,12 @@ export class Order extends Model {
 			.format('HH:mm:ss');
 	}
 
+	get itemCheckoutPerMin(): number {
+		return (
+			this.itemCount / moment.duration(this.checkoutDuration).asMinutes()
+		);
+	}
+
 	get date(): string {
 		return moment(this.checkoutDate).format('YYYY-MM-DD');
 	}
@@ -121,6 +130,16 @@ export class Order extends Model {
 		}
 	}
 
+	get itemAssemblePerMinute(): number {
+		if (this.assembleDuration != null) {
+			return (
+				this.itemCount / moment.duration(this.assembleDuration).asMinutes()
+			);
+		} else {
+			return null;
+		}
+	}
+
 	constructor(data: any = null) {
 		super();
 
@@ -128,11 +147,35 @@ export class Order extends Model {
 	}
 
 	json(data: any = null): any {
-		if (data != null) {
-			this.setJson(data);
-		}
-
+		this.setJson(data);
 		return this.getJson();
+	}
+
+	private setJson(data: any): void {
+		if (data != null) {
+			this.map(
+				{
+					orderNumber: null,
+					pos: null,
+					cash: null,
+					createDate: null,
+					checkoutDate: null,
+					assembleDate: null
+				},
+				data
+			);
+
+			if (Array.isArray(data.items)) {
+				this.items = [];
+				for (const item of data.items) {
+					this.items.push(new OrderItem(item));
+				}
+			}
+
+			if (data.discount != null) {
+				this.discount = new Discount(data.discount);
+			}
+		}
 	}
 
 	private getJson(): any {
@@ -164,32 +207,6 @@ export class Order extends Model {
 		}
 
 		return data;
-	}
-
-	private setJson(data: any): void {
-		if (data != null) {
-			this.map(
-				{
-					orderNumber: null,
-					cash: null,
-					createDate: null,
-					checkoutDate: null,
-					assembleDate: null
-				},
-				data
-			);
-
-			if (Array.isArray(data.items)) {
-				this.items = [];
-				for (const item of data.items) {
-					this.items.push(new OrderItem(item));
-				}
-			}
-
-			if (data.discount != null) {
-				this.discount = new Discount(data.discount);
-			}
-		}
 	}
 
 	async validate(): Promise<void> {

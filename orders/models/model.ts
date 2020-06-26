@@ -1,36 +1,16 @@
 import { ModelValidationError } from '../../errors/model-validation-error';
 import { PropertyValidationError } from '../../errors/property-validation-error';
 import { validateOrReject } from 'class-validator';
+import { map } from './map';
 
 export abstract class Model {
 	map(properties: any, data: any = null): any {
 		if (data != null) {
-			for (const prop in properties) {
-				if (properties.hasOwnProperty(prop)) {
-					if (data[prop] != null) {
-						properties[prop] = data[prop];
-					}
-
-					if (properties[prop] != null) {
-						this[prop] = properties[prop];
-					}
-				}
-			}
+			map(properties, this, data);
 		}
 
 		const result = {};
-		for (const prop in properties) {
-			if (properties.hasOwnProperty(prop)) {
-				let value = this[prop];
-				if (value == null) {
-					value = properties[prop];
-				}
-
-				if (value != null) {
-					result[prop] = value;
-				}
-			}
-		}
+		map(properties, result, this);
 		return result;
 	}
 

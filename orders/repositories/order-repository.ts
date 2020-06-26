@@ -3,7 +3,6 @@ import * as moment from 'moment';
 import { Order } from '../models/order';
 import { Discount } from '../models/discount';
 import { OrderItem } from '../models/order-item';
-import { ServiceError } from '../../errors/service-error';
 
 export class OrderRepository {
 	async fetch(date: string): Promise<Order[]> {
@@ -33,18 +32,16 @@ export class OrderRepository {
 
 		const doc = admin.firestore().doc(`dates/${date}/orders/${orderNumber}`);
 		const snapshot = await doc.get();
-		if (!snapshot.exists) {
-			throw new ServiceError(
-				`Could not find order on Date: "${date}" with OrderNumber: "${orderNumber}".`,
-				{ statusCode: 404 }
-			);
+		if (snapshot.exists) {
+			return Promise.resolve(this.model(orderNumber, snapshot.data()));
+		} else {
+			return Promise.resolve(null);
 		}
-
-		return Promise.resolve(this.model(orderNumber, snapshot.data()));
 	}
 
 	private data(order: Order): any {
 		const data = {
+			pos: order.pos,
 			cash: order.cash,
 			change: order.change,
 			checkoutDate: moment(order.checkoutDate).format(),
@@ -89,6 +86,7 @@ export class OrderRepository {
 
 	private model(orderNumber: any, data: any): Order {
 		const order = new Order();
+		order.pos = data.pos;
 		order.cash = data.cash;
 		order.checkoutDate = data.checkoutDate;
 		order.createDate = data.createDate;
